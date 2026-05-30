@@ -1,0 +1,111 @@
+---
+import { ClientRouter } from 'astro:transitions'
+import { SEO } from 'astro-seo'
+import '../styles/global.css'
+
+import geist400 from '@fontsource/geist-sans/files/geist-sans-latin-400-normal.woff2'
+import geist500 from '@fontsource/geist-sans/files/geist-sans-latin-500-normal.woff2'
+
+const { title, description, image } = Astro.props
+
+const siteURL = 'https://caixeta.dev'
+const fullURL = siteURL + Astro.url.pathname
+const siteName = 'Rafael Caixeta'
+const twitterHandle = '@caixetadev'
+
+const isHome = Astro.url.pathname === '/'
+const pageTitle = isHome
+  ? 'Rafael Caixeta — Software Engineer | Go, React & Cloud'
+  : `${title} | ${siteName}`
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+
+    <meta name="author" content="Rafael Caixeta" />
+    <meta
+      name="keywords"
+      content="Rafael Caixeta, caixetadev, caixeta dev, rafael caixeta developer, rafael caixeta software engineer, software engineer, Go developer, React developer, frontend engineer, backend developer, Golang, JavaScript, TypeScript, Next.js, Linux, open source, cloud infrastructure, AWS"
+    />
+
+    <SEO
+      title={pageTitle}
+      description={description}
+      canonical={fullURL}
+      openGraph={{
+        basic: {
+          title: pageTitle,
+          type: isHome ? 'profile' : 'website',
+          url: fullURL,
+          image: siteURL + image,
+        },
+        optional: {
+          siteName: siteName,
+          locale: 'en_US',
+        },
+      }}
+      twitter={{
+        card: 'summary_large_image',
+        title: pageTitle,
+        description,
+        image: siteURL + image,
+        creator: twitterHandle,
+        site: twitterHandle,
+      }}
+      extend={{
+        link: [
+          {
+            rel: 'icon',
+            type: 'image/png',
+            sizes: '32x32',
+            href: '/favicon-32x32.png',
+          },
+          {
+            rel: 'icon',
+            type: 'image/png',
+            sizes: '196x196',
+            href: '/android-chrome-196x196.png',
+          },
+          {
+            rel: 'apple-touch-icon',
+            sizes: '180x180',
+            href: '/apple-touch-icon.png',
+          },
+          { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+        ],
+      }}
+    />
+
+    <link
+      rel="preload"
+      href={geist400}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href={geist500}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <link rel="sitemap" href="/sitemap-index.xml" />
+
+    <slot name="head" />
+
+    <ClientRouter />
+  </head>
+  <body
+    class="min-h-screen antialiased mx-auto max-w-2xl md:pt-10 p-4 md:p-0 bg-background text-foreground"
+  >
+    <main class="pb-5">
+      <slot />
+    </main>
+  </body>
+</html>

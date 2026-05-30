@@ -1,0 +1,132 @@
+---
+title: 'SGID on Linux: What It Is and When to Use It'
+slug: 'sgid-linux'
+description: 'Understand SGID, how it works, and how it can help with shared directories for development teams.'
+date: '02/10/2026'
+category: 'Linux'
+tags: ['permissions', 'security', 'groups']
+draft: false
+---
+
+One day you run the command `ls -lha` and notice that a directory has a “strange” permission: instead of the letter `x` in the group, the letter `s` appears. What does this mean? What is the difference between `x` and `s`?
+
+In this article, you will learn about SGID, how it works, and how it can help with shared directories for development teams.
+
+## The problem
+
+By default, when a user creates a file or directory in Linux, the group of the file will be the user's primary group.
+
+This can cause problems in development teams. For example:
+
+- Suppose we have two developers: `mary` and `joseph`.
+- Each one creates files in a shared folder.
+- Result without SGID:
+
+```bash
+$ ls -lha /srv/dev
+-rw-rw-r-- 1 joseph  joseph   0 Feb 10 21:35 a
+-rw-rw-r-- 1 mary    mary     0 Feb 10 21:35 b
+```
+
+The file created by Joseph belongs to the `joseph` group, and Mary's file belongs to the `mary` group. Joseph cannot modify Mary's files, and vice versa, even if they are in the same work folder.
+
+## What is SGID?
+
+The **SGID (Set Group ID)** is a special permission that can be applied to directories.
+
+When a directory has SGID, **all files and subdirectories created within it inherit the group of the parent directory**, not the group of the user who created them.
+
+In `ls -l`, the permission appears as `s` instead of `x` for the group:
+
+```bash
+drwxrws---  3 root dev  4.0K Feb 10 20:23 dev
+```
+
+- `x` — you can enter the directory
+- `s` — you can enter + files inherit the parent group
+
+## Settings
+
+### Creating the directory and group
+
+```bash
+$ mkdir -p /srv/dev
+$ groupadd dev
+$ chgrp dev /srv/dev
+$ chmod 770 /srv/dev/
+```
+
+### Creating users and adding them to the group
+
+```bash
+$ useradd joseph -m -s /bin/bash
+$ useradd mary -m -s /bin/bash
+$ usermod -aG dev joseph
+$ usermod -aG dev mary
+```
+
+## Without SGID
+
+If both create files in the `/srv/dev` folder:
+
+```bash
+$ ls -lha /srv/dev
+-rw-rw-r-- 1 joseph  joseph   0 Feb 10 21:35 a
+-rw-rw-r-- 1 mary    mary     0 Feb 10 21:35 b
+```
+
+Each file still belongs to the user group, not the `dev` group. This is not ideal for collaboration.
+
+## Applying SGID
+
+First, we set all files to the correct group:
+
+```bash
+$ chgrp -R dev /srv/dev
+```
+
+Now all files belong to the `dev` group:
+
+```bash
+$ ls -lha /srv/dev
+-rw-rw-r-- 1  joseph  dev  0 Feb 10 21:35 a
+-rw-rw-r-- 1  mary    dev  0 Feb 10 21:35 b
+```
+
+Finally, we apply SGID to the folder:
+
+```bash
+$ chmod 2770 /srv/dev/
+```
+
+> The `2` at the beginning activates SGID. The folder now has `rwxrws---` permissions.
+
+## Result
+
+If Joseph creates a new file:
+
+```bash
+$ su joseph
+$ touch /srv/dev/c
+$ ls -lha /srv/dev
+-rw-rw-r-- 1 joseph dev 0 Feb 10 21:35 c
+```
+
+And Maria creates another file:
+
+```bash
+$ su mary
+$ touch /srv/dev/d
+$ ls -lha /srv/dev
+-rw-rw-r-- 1 mary dev 0 Feb 10 21:35 d
+```
+
+All files belong to the `dev` group, facilitating collaboration.
+
+## Conclusion
+
+SGID is a powerful permission for shared directories:
+
+- **Files created inherit the parent directory group**
+- Facilitates team collaboration without having to manually change permissions
+- Always combine SGID with appropriate group permissions to maintain security

@@ -1,0 +1,169 @@
+---
+title: 'Understanding the LSOF Command on Linux'
+slug: 'lsof-command-tutorial'
+description: 'Learn how to use the lsof command to list open files, debug processes, and troubleshoot network connections on Linux and macOS'
+date: '02/14/2026'
+category: 'Linux'
+tags: ['files', 'monitoring', 'network', 'processes']
+draft: false
+---
+
+The command `lsof`, which stands for List Open Files, is used to show which files are open on Unix systems, such as Linux and macOS.
+
+In Unix systems, almost everything is considered a file, even devices, network connections, and processes. Therefore, `lsof` is a very useful tool for analyzing and troubleshooting processes.
+
+Before we look at the main uses, it is worth understanding some of the columns that the command displays. Most are self-explanatory, so let's just focus on the **FD** and **TYPE** columns.
+
+```bash
+$: sudo lsof -u caixeta | head
+COMMAND      PID    USER  FD      TYPE             DEVICE  SIZE/OFF       NODE NAME
+systemd      998 caixeta cwd       DIR              259,2      4096          2 /
+systemd      998 caixeta rtd       DIR              259,2      4096          2 /
+systemd      998 caixeta txt       REG              259,2    137400     157885 /usr/lib/systemd/systemd
+systemd      998 caixeta mem       REG              259,2    935880     146984 /usr/lib/libzstd.so.1.5.7
+systemd      998 caixeta mem       REG              259,2   5708896     139078 /usr/lib/libcrypto.so.3
+systemd      998 caixeta mem       REG              259,2    182288     148830 /usr/lib/libseccomp.so.2.6.0
+systemd      998 caixeta mem       REG              259,2    424056     160227 /usr/lib/libbpf.so.1.6.2
+systemd      998 caixeta mem       REG              259,2   2010168     134512 /usr/lib/libc.so.6
+systemd      998 caixeta mem       REG              259,2   5398376     157416 /usr/lib/systemd/libsystemd-shar
+```
+
+**FD** - means file description and can contain the following values:
+
+- **cwd** - current working directory
+- **rtd** - root directory
+- **txt** - program text (code and data)
+- **mem** - memory mapped file
+
+**TYPE** - File type and identification:
+
+- **DIR** – Directory
+- **REG** – Regular file
+- **CHR** – Character special file
+- **FIFO** – First In First Out
+
+## Filtering by process, user, and PID
+
+To filter by process name, we can use the `-c` flag.
+
+```bash
+$: lsof -c service_name
+```
+
+To check the open files of a specific user, we can use the `-u` flag.
+
+```bash
+$: lsof -u root
+```
+
+If we want to search for a specific process using the PID, we can use the `-p` flag.
+
+```bash
+$: lsof -p 116858
+```
+
+It is also possible to exclude a user, a process by name, or a specific process by PID using the `^` symbol with the above commands. The `^` acts as a negation operator, i.e., it returns all results except the specified value.
+
+Below are some examples:
+
+```bash
+# Returns all processes except the specified process
+$: lsof -c ^service_name
+
+# Returns all users except the specified user
+$: lsof -u ^root
+
+# Returns all processes except the specified PID
+$: lsof -p ^116858
+```
+
+## Filtering deleted files that are still open
+
+When we delete a file in Linux, it is not immediately removed from the disk. What is removed is the entry in the directory (the pointer that references the file). The [inode](/blog/how-inodes-work) will continue to exist as long as some process is still using that file.
+
+Therefore, you may delete a large file, check the disk space, and notice that the storage is still occupied. This is because the file is still open by some process, and the space will only be freed when it is closed.
+
+We can identify which processes are keeping deleted files open with the command:
+
+```bash
+$: lsof -a +L1
+```
+
+## Identifying processes using files inside a directory
+
+To see which processes have files open inside a directory, use:
+
+```bash
+$: lsof +D /directory
+```
+
+The +D option makes lsof recursively list all open files within the specified directory and its subdirectories.
+
+This is useful when:
+
+- You cannot unmount a volume
+- A directory cannot be removed
+- You need to know which process is using files in that path
+
+## Filtering network connections
+
+To list all open network connections, including ports in listen mode (LISTEN) and connections already established (ESTABLISHED):
+
+```bash
+$: lsof -i
+```
+
+If you want to filter all TCP connections by state, such as ESTABLISHED or LISTEN, you can use the `-s` option.
+
+```bash
+$: lsof -i -sTCP:LISTEN
+$: lsof -i -sTCP:ESTABLISHED
+```
+
+If we want to filter network files by IPV4 and IPV6, we can pass `4` for IPV4 and `6` for IPV6.
+
+```bash
+$: lsof -i 4
+$: lsof -i 6
+```
+
+## Filtering by protocol and ports
+
+Still using the command above, we can perform a few more types of filtering, such as filtering by protocol and ports.
+
+```bash
+$: lsof -i TCP:22
+# get all TCP protocols in the range of port 1-1024
+$: lsof -i TCP:1-1024
+```
+
+## Flags -n and -P
+
+We also have the `-n` and `-P` flags, which can be used in combination with the `-i` flag. By default, `lsof` converts IP numbers to host names (reverse DNS lookup), and by using the `-n` flag, we are telling `lsof` not to convert IPs to names.
+
+`lsof` also converts port numbers to service names, which are usually located in the `/etc/services` file. Using `-P`, instead of `:ssh`, `:22` will appear.
+
+Taking a look at the `/etc/services` file, we can see that there are many services defined. We can filter by `ssh` to check how it works:
+
+```bash
+$: cat /etc/services | grep "\b22\b"
+ssh                22/tcp
+ssh                22/udp
+ssh                22/sctp
+```
+
+Note that ssh has port 22 as its value, so when you search using the `-i` flag, `:ssh` may appear instead of the port. Using the `-P` flag, you will see what the port number actually is.
+
+Using the `-n` and `-P` flags will make `lsof` faster since it will not need to search for the DNS or service name.
+
+## Conclusion
+
+`lsof` is a command for listing open files on the system, and since we know that in Linux everything is treated as a file, this makes `lsof` an indispensable command for system administrators and security professionals who need to understand what is happening at the process and network level.
+
+With it, you can:
+
+- List connections by specific protocols (TCP/UDP) or by ports
+- Identify which process is using a particular port
+- Filter connections by status (LISTEN, ESTABLISHED, etc.)
+- View all files opened by a specific user
+- Assist in investigating and troubleshooting network and system problems
